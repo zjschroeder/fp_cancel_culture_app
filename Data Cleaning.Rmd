@@ -26,6 +26,7 @@ library(furrr)
 library(plotly) # for touchable plots
 library(psych)
 library(tictoc) # For timimg long functions
+library(groupdata2) # For splitting data in the super-large lists
 
 ########################### TWEET COLLECTION: RETICULATE AND PYTHON PACKAGES
 
@@ -148,7 +149,7 @@ All of the above code should work with some tweaking, but I lack the Python expe
 
 ## Functions for Tweet Cleaning
 
-```{r Functions: Cleaning JSON data, eval = FALSE}
+```{r Functions: Cleaning JSON data, eval = TRUE}
 # NO PARALLEL PROCESSING
 json_to_nested_tibbles <- function(json_data){
   map(json_data, ~tibble(
@@ -233,22 +234,52 @@ json_to_nested_tibbles_parallel_process <- function(json_data){
   )
 }
 
-# FULL DATA CLEANING FUNCTION
+
+# Function for all cleaning
 clean_twitter <- function(json_data){
+  # SET UP FUNCTIONS
   tictoc::tic()
-  gc() # Force a 'garbage collection' before running, prevents crashing
-  name <- deparse(substitute(json_data)) # Captures the name put into the function
-  future::plan(multisession, workers = 6) # Set the number of cores you'll use
-  # Three cleaning functions
-  parallel_output <- json_to_nested_tibbles_parallel_process(json_data)
-  tibble_output <- tibble(parallel_output)
-  clean_output <- tidyr::unnest_auto(tibble_output, col = parallel_output)
-  
+    gc() # Force a 'garbage collection' before running, prevents (some) crashing
+    name <- deparse(substitute(json_data)) # Captures the name put into the function
+    future::plan(multisession, workers = 6) # Set the number of cores you'll use
+  # CREATING NULL DFS
+    loops <- tibble(NA)
+    parallel_output <- tibble(NA)
+    tibble_output <- tibble(NA)
+    clean_output <- tibble(NA)
+    data <- NA
+  # Automatically calculating how many loops
+   total_groups <- max(as.numeric(groupdata2::group_factor(json_data,
+                                        n = 10000,
+                                        method = "greedy")))
+   loops <- total_groups - 1
+   loop_call_left <- c(0:loops) * 10000 + 1
+   loop_call_right <- c(0:(loops)) * 10000 + 10000
+  # Final items; start with these because it sets up the tibble well
+    parallel_output <- json_data[loop_call_right[loops]:length(json_data)] %>% 
+      json_to_nested_tibbles_parallel_process()
+    tibble_output <- tibble(parallel_output)
+    data <- tidyr::unnest_wider(tibble_output, col = parallel_output)
+    parallel_output <- tibble(NA)
+    tibble_output <- tibble(NA)
+  tictoc::toc()
+  #### BEGIN LOOPING OVER GROUPS
+  tictoc::tic()
+    for(i in 1:loops){
+      # Select 10000 at a time
+      parallel_output <- df[loop_call_left[i]:loop_call_right[i]] %>% 
+        json_to_nested_tibbles_parallel_process()
+      tibble_output <- tibble(parallel_output)
+      data <- rbind(data, tidyr::unnest_wider(tibble_output, col = parallel_output))
+      parallel_output <- tibble(NA)
+      tibble_output <- tibble(NA)
+      paste0("finished ", i, " of ", loops)
+    }
   # Saves the output as the name of the input + _clean
-  assign(
-    x = paste0(name, "_clean"),
-    value = clean_output,
-    envir = .GlobalEnv)
+    assign(
+      x = paste0(name, "_clean"),
+      value = data,
+      envir = .GlobalEnv)
   tictoc::toc()
 }
 ```
@@ -266,21 +297,21 @@ I'm using the [furrr package](https://cran.r-project.org/web/packages/furrr/inde
 # ws_no_parallel <- json_to_nested_tibbles(will_smith)
 
 # WITH PARALLEL PROCESSING
- future::plan(multisession, workers = 6) # Set the number of cores you'll use
- ws_parallel <- json_to_nested_tibbles_parallel_process(will_smith)
+# future::plan(multisession, workers = 6) # Set the number of cores you'll use
+# ws_parallel <- json_to_nested_tibbles_parallel_process(will_smith)
 ```
 
 If you want to run this code to clean your own data, you can! If you download data with these same user and tweet fields, the functions should generalize - I've used it on other data here as well. **IMPORTANT** I'd recommend either using the json_to_nested_tibbles() function without parallel processing, *or* making sure to edit the future::plan() function's "workers" argument to set the number of cores to match your computer's specs. I *think* you can use parallelly::availableCores() instead of specifying the workers argument and it'll check automatically, but don't quote me on that. I don't know if calling too many cores will just give an error or if it'll make your computer catch fire, so... good luck!
 
 ```{r JSON list to usable tibble, eval = FALSE}
-ws_tibble <- tibble(ws_parallel)
-ws <- tidyr::unnest_wider(ws_tibble, col = ws_parallel)
+# ws_tibble <- tibble(ws_parallel)
+# ws <- tidyr::unnest_wider(ws_tibble, col = ws_parallel)
 ```
 
 The true hero of this process is tidyr::unnest_wider()! It's analogous to tidyr::pivot_wider(), except pivots a tibble column of lists to a single-tibble wide format. 
 
-```{r Will Smith abbrev with clean_twitter(), cache=TRUE, eval = FALSE}
-# clean_twitter(will_smith)
+```{r Will Smith abbrev with clean_twitter(), cache=TRUE, eval = TRUE}
+clean_twitter(will_smith)
 ```
 
 Above is the clean_twitter() function I wrote that cleans the .json data for you. It compiles all the above steps into one fundtion.
@@ -293,27 +324,41 @@ In this section, I repeat the above process but with data I scraped using the fo
 
 All other aspects of the API call were the same. 
 
-In addition to Twitter's deindividuation, the other reason I have you not running the cleaning code is that it takes a long time and is very computationally demanding.
+In addition to Twitter's deindividuation, the other reason I have you not running the cleaning code is that it takes a long time (approx 45 minutes on my machine per dataset) and is very computationally demanding.
 
 ```{r Import and clean: 2022 Cancel Culture Data, eval = FALSE, cache = TRUE}
-cancelculture_22 <- rjson::fromJSON(file = here::here("data/cc_2022_lite.json"))
-
-clean_twitter(cancelculture_22)                                    
+# cancelculture_22 <- rjson::fromJSON(file = here::here("data/cc_2022_lite.json"))
+# 
+# clean_twitter(cancelculture_22)                                    
 ```
 
 ```{r Import and clean: 2021 Cancel Culture Data, eval = FALSE, cache = TRUE}
-cancelculture_21 <- rjson::fromJSON(file = here::here("data/cc_060121_010122_lite"))
-
-clean_twitter(cancelculture_21)                                    
+# cancelculture_21 <- rjson::fromJSON(file = here::here("data/cc_060121_010122_lite.json"))
+# 
+# clean_twitter(cancelculture_21)                                    
 ```
-
 
 ## De-identifying, Exporting & Importing 
 
 From here on out, you should be able to do everything with the code!
 
-```{r}
+```{r De-identifying twitter data, eval = FALSE}
+# cancelculture <- rbind(cancelculture_21_clean, cancelculture_22_clean)
+# cancelculture_deidentified <- cancelculture %>% 
+#   select(text, tweet_date, retweet_count, reply_count, like_count, quote_count, followers_count, # following_count, tweet_count, verified, protected)
+# willsmith_deidentified <- will_smith_clean %>% 
+#   select(text, tweet_date, retweet_count, reply_count, like_count, quote_count, followers_count, # following_count, tweet_count, verified, protected)
+```
 
+```{r export, eval = FALSE}
+# save(cancelculture_deidentified, willsmith_deidentified, 
+#      file = "deidentified_data.RData")
+# save(cancelculture, will_smith_clean, 
+#      file = "identifiable_data.RData")
+```
+
+```{r}
+load("deidentified_data.RData")
 ```
 
 
@@ -341,10 +386,10 @@ convert_to_data_frame <- function(formal_dfm){
 }
 ```
 
-## Creating Dehumanization & Valence Text Analysis Scores
+## Will Smith
 
 ```{r}
-corp <- corpus(data, text_field = 3)
+corp <- corpus(willsmith_deidentified, text_field = 1)
 ```
 
 ```{r analysis}
@@ -382,6 +427,46 @@ data_long <- d %>%
   
 ```
 
+## Cancel Culture
+
+```{r}
+corp <- corpus(cancelculture_deidentified, text_field = 1)
+```
+
+```{r analysis}
+toks <- tokens(corp, remove_punct = T)
+dfmat <- dfm(toks)
+
+# MENTAL PERCEPTION
+
+ment_perc <- mental_perception(dfmat) %>% 
+  convert_to_data_frame()
+
+# POSITIVE AND NEGATIVE TERMS
+pos_neg <- sentiment(dfmat) %>% 
+  convert_to_data_frame()
+
+dict_df <- left_join(pos_neg, ment_perc, by = "doc_id")
+
+cc <- cbind(cancelculture_deidentified, dict_df)
+```
+
+```{r Creating additional interesting parameters}
+d <- d %>% 
+  mutate(
+    valence = positive - negative
+  )
+```
+
+```{r Creating long-format for plotting purposes}
+data_long <- d %>% 
+ pivot_longer(cols = c("negative", "positive", "neg_positive", 
+                       "neg_negative", "Experience", "Agency", 
+                       "PatientEmotion", "AgentEmotion", "MindOverall"),
+              names_to = "text_measures", 
+              values_to = "text_score")
+  
+```
 
 
 
