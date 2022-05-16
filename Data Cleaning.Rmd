@@ -372,14 +372,16 @@ dict_mpd <- dictionary(file = here::here("dictionary/MPD.dic"),
 dict_posneg <- data_dictionary_LSD2015
 ```
 
-## Quanteda: Functions
+## Functions for Text Analysis
 
 ```{r Functions for Text Analysis}
 mental_perception <- function(dfmat){
-  dfm_lookup(dfmat, dictionary = dict_mpd, levels = 1)
+  dfm_lookup(dfmat, dictionary = dict_mpd, levels = 1) %>% 
+  convert_to_data_frame()
 }
 sentiment <- function(dfmat){
-  dfm_lookup(dfmat, dictionary = dict_posneg, levels = 1)
+  dfm_lookup(dfmat, dictionary = dict_posneg, levels = 1) %>% 
+  convert_to_data_frame()
 }
 convert_to_data_frame <- function(formal_dfm){
   convert(formal_dfm, to = "data.frame")
@@ -388,34 +390,35 @@ convert_to_data_frame <- function(formal_dfm){
 
 ## Will Smith
 
-```{r WS creating corpus}
-corp <- corpus(willsmith_deidentified, text_field = 1)
-```
-
-```{r WS text analysis}
+```{r Will Smith Text Analysis}
+name <- deparse(substitute(ws)) 
+corp <- corpus(ws, text_field = 1)
 toks <- tokens(corp, remove_punct = T)
 dfmat <- dfm(toks)
+ment_perc <- mental_perception(dfmat)
+pos_neg <- sentiment(dfmat) 
 
-# MENTAL PERCEPTION
+txt_dat <- left_join(pos_neg, ment_perc, by = "doc_id")
 
-ment_perc <- mental_perception(dfmat) %>% 
-  convert_to_data_frame()
+data <- cbind(ws, txt_dat)
+ # assign(
+ #     x = paste0(name, "_analyzed"),
+ #     value = data,
+ #     envir = .GlobalEnv)
+ # assign(
+ #     x = paste0(name, "_text_other"),
+ #     value = list(corp, toks, dfmat, ment_perc, pos_neg),
+ #     envir = .GlobalEnv)
 
-# POSITIVE AND NEGATIVE TERMS
-pos_neg <- sentiment(dfmat) %>% 
-  convert_to_data_frame()
-
-dict_df <- left_join(pos_neg, ment_perc, by = "doc_id")
-
-ws <- cbind(willsmith_deidentified, dict_df)
+# analyze_text(ws)
 ```
 
-```{r WS creating additional interesting parameters}
-ws <- ws %>% 
-  mutate(
-    valence = positive - negative
-  )
+```{r}
+ws$valence <- map2_dbl(.x = data$positive, 
+                       .y = data$negative, 
+                         ~ .x - .y)
 ```
+
 
 ```{r WS creating long-format for plotting purposes}
 ws_long <- ws %>% 
