@@ -1,0 +1,387 @@
+---
+title: "Data cleaning and explanation"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Note to Reviewers:
+
+Hi! These are data I collected from the Twitter API. Unfortunately, part of the agreement I signed with them when I proposed this project is to deindividuate the Tweets as much as possible, but you'll need to read in de-individuated data further down the code. To compensate, I've added as many annotations as I can explaining what it all does, including a brief explanation of the [Reticulate package](https://rstudio.github.io/reticulate/) and [TweePy python library](https://www.tweepy.org/)  I used to access the API. I've also included some brief instructions on the the [Quanteda suite of packages](https://quanteda.io/) that were used in analyzing the text of the tweets - Quanteda is a fabulous, open-source (duh) and powerful tool for NLP and is a useful free replacement to LIWC. 
+
+The [Twitter API](https://developer.twitter.com/en/docs/twitter-api) itself is really cool, and they're not afraid to give you a LOT of data once you get an academic researcher account, but their student accounts are instant-access and very easy to use if you want to dive into the messy world of Tweets I'd also recommend exploring the [academictwitteR](https://github.com/cjbarrie/academictwitteR) package. It only works with a [Twitter API Academic Researcher](https://developer.twitter.com/en/products/twitter-api/academic-research) account. To secure an academic researcher Twitter API account, you need to propose a specific study and provide evidence that you're affiliated with a university. The academic researcher application isn't difficult, but its a little time-consuming and, if you make an error or are rejected, there is currently no *revise-and-resubmit*, so you'll need to make another Twitter account and apply again. They got back to me within 24 hours, but from what I see, response times seem pretty variably.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(message = FALSE)
+```
+
+```{r Libraries}
+########################### GENERAL PACKAGES
+library(tidyr) # 
+library(rjson) # Importing json files
+library(purrr)
+library(tidyverse)
+library(lubridate)
+library(furrr)
+library(plotly) # for touchable plots
+library(psych)
+library(tictoc) # For timimg long functions
+
+########################### TWEET COLLECTION: RETICULATE AND PYTHON PACKAGES
+
+library(tidyverse)
+library(reticulate)
+### These are the python packages I installed using the package.
+# reticulate::py_install("pandas")
+# reticulate::py_install("tweepy")
+# reticulate::py_install("numpy")
+# reticulate::py_install("time")
+
+########################### TEXT ANALYSIS: QUANTEDA SUITE
+library(quanteda)
+library(quanteda.dictionaries) # includes liwcalike function
+library(quanteda.corpora) # Datasets & tutorials for quanteda
+library(quanteda.textmodels)
+library(quanteda.textstats)
+library(quanteda.textplots)
+library(tm)
+
+# Used for reading in text
+library(readtext)
+
+########################### SHINY-SPECIFIC PACKAGES
+# These packages will also be called in Shiny, but I figure it's useful to them here as well
+# library(thematic)
+# library(bslib)
+```
+
+# Collecting Tweets
+
+##  Importing packages using Reticulate, Python, and Tweepy
+
+Infinite gratitude to [Professor Foote](https://youtu.be/rQEsIs9LERM), [github repo](https://github.com/jdfoote/Intro-to-Programming-and-Data-Science/blob/fall2021/extra_topics/twitter_v2_example.ipynb) and [R-Ladies Baltimore](https://youtu.be/U3ByGh8RmSc) whose work is very useful in (1) starting with Reticulate and (2) using TweePy (the Python version of the rtweet package). My initial intention was to use the rtweet package, but I ran into errors that I *think* are due to the recent release of the Twitter API OAuth 2.0.
+
+For researchers, the [Twitter API GUI for Researchers](https://developer.twitter.com/apitools/downloader) is a really useful tool. Although I found it preferable (and more reproducible) to write out the search query code using one of the packages/libraries mentioned above, the GUI tells you how many tweets you're about to download (which is a good heads up) and helps write the query syntax if you're new to using the Twitter API. The GUI is also MUCH faster than our python code here.
+
+## Setting up Python
+
+
+
+```{python setup, eval = FALSE}
+# import pandas as pd
+# import tweepy
+# import numpy
+# import time
+# import json
+# from twitter_authentication import bearer_token
+# 
+# client = tweepy.Client(bearer_token, wait_on_rate_limit = True)
+```
+
+## Query Code and Explanation: 
+
+```{python will smith query, eval = FALSE}
+#will_smith_full = []
+#for response in tweepy.Paginator(client.search_all_tweets,
+# query = '"cancel will smith" OR cancelwillsmith OR "#CancelWillSmith" OR
+# "#cancelwillsmith" OR "will smith is cancelled" OR 
+# "is will smith cancelled" lang:en -is:retweet',
+# user_fields = ['username', 'public_metrics', 'description', 'location', #'verified'],
+# tweet_fields = ['created_at', 'geo', 'public_metrics', 'text'],
+# expansions = 'author_id',
+# start_time = '2006-03-22T00:00:00Z',
+# end_time = '2018-03-22T09:00:00Z'):
+# time.sleep(1) 
+# will_smith_full(response)
+```
+
+We first build an empty list (from pandas, not technically a list in R's terms, but close enough for government work). We then use the tweepy.Paginator function to query all the *Will Smith* tweets described in the query argument (which includes filtering for only English tweets and not including retweets). We then define the user data (user_fields) and tweet-specific data (tweet_fields) we wish to collect. The expansions argument includes a unique author_id that will allow us to connect the user and tweet data to each other. We then have the start and end time arguments, which specify the date range we're pulling from. Finally, (Per Professor Foote's suggestion) we include the time.sleep function to wait 1 second between each iteration. This meets Twitter's request that you make only one request per second. Finally, the append function adds the most recent search to our growing list
+
+```{python Clean Will Smith Code}
+# result = []
+# user_dict = {}
+# # Loop through each response object
+# for response in will_smith_full:
+#     # Take all of the users, and put them into a dictionary of dictionaries # with the info we want to keep
+#     for user in response.includes['users']:
+#         user_dict[user.id] = {'username': user.username, 
+#                               'followers': # user.public_metrics['followers_count'],
+#                               'tweets': user.public_metrics['tweet_count'],
+#                               'description': user.description,
+#                               'location': user.location
+#                              }
+#     for tweet in response.data:
+#         # For each tweet, find the author's information
+#         author_info = user_dict[tweet.author_id]
+#         # Put all of the information we want to keep in a single dictionary # for each tweet
+#         result.append({'author_id': tweet.author_id, 
+#                        'username': author_info['username'],
+#                        'author_followers': author_info['followers'],
+#                        'author_tweets': author_info['tweets'],
+#                        'author_description': author_info['description'],
+#                        'author_location': author_info['location'],
+#                        'text': tweet.text,
+#                        'created_at': tweet.created_at,
+#                        'retweets': tweet.public_metrics['retweet_count'],
+#                        'replies': tweet.public_metrics['reply_count'],
+#                        'likes': tweet.public_metrics['like_count'],
+#                        'quote_count': tweet.public_metrics['quote_count']
+#                       })
+# 
+# # Change this list of dictionaries into a dataframe
+# df = pd.DataFrame(result)
+```
+
+The above code is a loop that sorts the JSON data into the correct format. This allows us to actually use it when we import it into R for cleaning and further manipulation (below). It is much easier to do this in Python, but we're soon to get to R!
+
+## Exporting Queried Data Queried Data and Explanation
+
+```{python exporting twitter data, eval = FALSE}
+# json_string = json.dumps(df)
+# with open('will_smith_full.json', 'w') as outfile:
+#     outfile.write(json_string)
+```
+
+All of the above code should work with some tweaking, but I lack the Python expertise to guarantee *true* reproducibility. Check out the resources I linked, they'll do a much better job than I at explaining this!
+
+# R Code Data Cleaning
+
+## Functions for Tweet Cleaning
+
+```{r Functions: Cleaning JSON data, eval = FALSE}
+# NO PARALLEL PROCESSING
+json_to_nested_tibbles <- function(json_data){
+  map(json_data, ~tibble(
+  # Variables present in all Tweets
+    username = .x$author$username,
+    tweet_date = .x$created_at %>% 
+      lubridate::ymd_hms(),
+    text = .x$text,
+    retweet_count = .x$public_metrics$retweet_count,
+    reply_count = .x$public_metrics$reply_count,
+    like_count = .x$public_metrics$like_count,
+    quote_count = .x$public_metrics$quote_count,
+    followers_count = .x$author$public_metrics$followers_count,
+    following_count = .x$author$public_metrics$following_count,
+    tweet_count = .x$author$public_metrics$tweet_count,
+    author_id = .x$author$id,
+    verified = .x$author$verified,
+    protected = .x$author$protected,
+    account_created_at = .x$author$created_at %>% 
+      lubridate::ymd_hms(),
+    name = .x$author$name,
+    account_description = .x$author$description,
+    listed_count = .x$author$public_metrics$listed_count,
+    url = .x$url,
+    conversation_id = .x$conversation_id,
+    # If statements for items that may or may not be present in tweet data
+    location = if("location" %in% names(.x$author)){
+                          as.character(.x$author$location)
+                            }else{as.character(NA)},
+    referenced_tweets = if("referenced_tweets" %in% names(.x)){
+                           list(.x$referenced_tweets)
+                             }else{list(NULL)},
+    entities = if("entities" %in% names(.x)){
+                           list(.x$entities)
+                             }else{list(NULL)},
+    in_reply_to_user_id = if("in_reply_to_user_id" %in% names(.x)){
+                         list(.x$in_reply_to_user_id)
+                           }else{list(NULL)}
+  )
+  )
+}
+
+# WITH PARALLEL PROCESSING
+json_to_nested_tibbles_parallel_process <- function(json_data){
+  furrr::future_map(json_data, ~tibble(
+  # Variables present in all tweets
+    username = .x$author$username,
+    tweet_date = .x$created_at %>% 
+      lubridate::ymd_hms(),
+    text = .x$text,
+    retweet_count = .x$public_metrics$retweet_count,
+    reply_count = .x$public_metrics$reply_count,
+    like_count = .x$public_metrics$like_count,
+    quote_count = .x$public_metrics$quote_count,
+    followers_count = .x$author$public_metrics$followers_count,
+    following_count = .x$author$public_metrics$following_count,
+    tweet_count = .x$author$public_metrics$tweet_count,
+    author_id = .x$author$id,
+    verified = .x$author$verified,
+    protected = .x$author$protected,
+    account_created_at = .x$author$created_at %>% 
+      lubridate::ymd_hms(),
+    name = .x$author$name,
+    account_description = .x$author$description,
+    listed_count = .x$author$public_metrics$listed_count,
+    url = .x$url,
+    conversation_id = .x$conversation_id,
+    # If statements for items that may or may not be present in tweet data
+    location = if("location" %in% names(.x$author)){
+                            as.character(.x$author$location)
+                              }else{as.character(NA)},
+    referenced_tweets = if("referenced_tweets" %in% names(.x)){
+                            list(.x$referenced_tweets)
+                              }else{as.character(NA)},
+    entities = if("entities" %in% names(.x)){
+                            list(.x$entities)
+                              }else{as.character(NA)},
+    in_reply_to_user_id = if("in_reply_to_user_id" %in% names(.x)){
+                            list(.x$in_reply_to_user_id)
+                              }else{as.character(NA)}
+  )
+  )
+}
+
+# FULL DATA CLEANING FUNCTION
+clean_twitter <- function(json_data){
+  tictoc::tic()
+  gc() # Force a 'garbage collection' before running, prevents crashing
+  name <- deparse(substitute(json_data)) # Captures the name put into the function
+  future::plan(multisession, workers = 6) # Set the number of cores you'll use
+  # Three cleaning functions
+  parallel_output <- json_to_nested_tibbles_parallel_process(json_data)
+  tibble_output <- tibble(parallel_output)
+  clean_output <- tidyr::unnest_auto(tibble_output, col = parallel_output)
+  
+  # Saves the output as the name of the input + _clean
+  assign(
+    x = paste0(name, "_clean"),
+    value = clean_output,
+    envir = .GlobalEnv)
+  tictoc::toc()
+}
+```
+
+I'm using the [furrr package](https://cran.r-project.org/web/packages/furrr/index.html), which is a wrapper for purrr that super easily implements parallel processing. It uses the same functions and syntax as purrr, just with 'future_' added to the front and use plan() from the future package to specify the number of computer cores that you want to use while parallel processing. This is  key for the computationally heavy code that I'm using here. 
+
+## Will Smith Data Cleaning
+
+```{r Loading Will Smith data}
+ will_smith <- rjson::fromJSON(file = here::here("data/will_smith_full.json"))
+```
+
+```{r JSON cleaning functions: Will Smith, cache = TRUE, eval = FALSE}
+# NO PARALLEL PROCESSING
+# ws_no_parallel <- json_to_nested_tibbles(will_smith)
+
+# WITH PARALLEL PROCESSING
+ future::plan(multisession, workers = 6) # Set the number of cores you'll use
+ ws_parallel <- json_to_nested_tibbles_parallel_process(will_smith)
+```
+
+If you want to run this code to clean your own data, you can! If you download data with these same user and tweet fields, the functions should generalize - I've used it on other data here as well. **IMPORTANT** I'd recommend either using the json_to_nested_tibbles() function without parallel processing, *or* making sure to edit the future::plan() function's "workers" argument to set the number of cores to match your computer's specs. I *think* you can use parallelly::availableCores() instead of specifying the workers argument and it'll check automatically, but don't quote me on that. I don't know if calling too many cores will just give an error or if it'll make your computer catch fire, so... good luck!
+
+```{r JSON list to usable tibble, eval = FALSE}
+ws_tibble <- tibble(ws_parallel)
+ws <- tidyr::unnest_wider(ws_tibble, col = ws_parallel)
+```
+
+The true hero of this process is tidyr::unnest_wider()! It's analogous to tidyr::pivot_wider(), except pivots a tibble column of lists to a single-tibble wide format. 
+
+```{r Will Smith abbrev with clean_twitter(), cache=TRUE, eval = FALSE}
+# clean_twitter(will_smith)
+```
+
+Above is the clean_twitter() function I wrote that cleans the .json data for you. It compiles all the above steps into one fundtion.
+
+## Cancel Culture Data Cleaning
+
+In this section, I repeat the above process but with data I scraped using the following query: 
+
+> "#cancelculture" OR "cancel culture" OR "cancelculture"
+
+All other aspects of the API call were the same. 
+
+In addition to Twitter's deindividuation, the other reason I have you not running the cleaning code is that it takes a long time and is very computationally demanding.
+
+```{r Import and clean: 2022 Cancel Culture Data, eval = FALSE, cache = TRUE}
+cancelculture_22 <- rjson::fromJSON(file = here::here("data/cc_2022_lite.json"))
+
+clean_twitter(cancelculture_22)                                    
+```
+
+```{r Import and clean: 2021 Cancel Culture Data, eval = FALSE, cache = TRUE}
+cancelculture_21 <- rjson::fromJSON(file = here::here("data/cc_060121_010122_lite"))
+
+clean_twitter(cancelculture_21)                                    
+```
+
+
+## De-identifying, Exporting & Importing 
+
+From here on out, you should be able to do everything with the code!
+
+```{r}
+
+```
+
+
+# Text Analysis
+
+## Quanteda: Dictionaries
+
+```{r Dictionaries}
+dict_mpd <- dictionary(file = here::here("dictionary/MPD.dic"), 
+                       encoding = "UTF-8")
+dict_posneg <- data_dictionary_LSD2015
+```
+
+## Quanteda: Functions
+
+```{r Functions for Text Analysis}
+mental_perception <- function(dfmat){
+  dfm_lookup(dfmat, dictionary = dict_mpd, levels = 1)
+}
+sentiment <- function(dfmat){
+  dfm_lookup(dfmat, dictionary = dict_posneg, levels = 1)
+}
+convert_to_data_frame <- function(formal_dfm){
+  convert(formal_dfm, to = "data.frame")
+}
+```
+
+## Creating Dehumanization & Valence Text Analysis Scores
+
+```{r}
+corp <- corpus(data, text_field = 3)
+```
+
+```{r analysis}
+toks <- tokens(corp, remove_punct = T)
+dfmat <- dfm(toks)
+
+# MENTAL PERCEPTION
+
+ment_perc <- mental_perception(dfmat) %>% 
+  convert_to_data_frame()
+
+# POSITIVE AND NEGATIVE TERMS
+pos_neg <- sentiment(dfmat) %>% 
+  convert_to_data_frame()
+
+dict_df <- left_join(pos_neg, ment_perc, by = "doc_id")
+
+d <- cbind(data, dict_df)
+```
+
+```{r Creating additional interesting parameters}
+d <- d %>% 
+  mutate(
+    valence = positive - negative
+  )
+```
+
+```{r Creating long-format for plotting purposes}
+data_long <- d %>% 
+ pivot_longer(cols = c("negative", "positive", "neg_positive", 
+                       "neg_negative", "Experience", "Agency", 
+                       "PatientEmotion", "AgentEmotion", "MindOverall"),
+              names_to = "text_measures", 
+              values_to = "text_score")
+  
+```
+
+
+
+
