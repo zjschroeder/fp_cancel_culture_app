@@ -255,7 +255,7 @@ clean_twitter <- function(json_data){
    loops <- total_groups - 1
    loop_call_left <- c(0:loops) * 10000 + 1
    loop_call_right <- c(0:(loops)) * 10000 + 10000
-  # Final items; start with these because it sets up the tibble well
+  # Final items; start with these because it sets up the tibble, and those items don't fit into the memory-saving bins
     parallel_output <- json_data[loop_call_right[loops]:length(json_data)] %>% 
       json_to_nested_tibbles_parallel_process()
     tibble_output <- tibble(parallel_output)
@@ -314,7 +314,7 @@ The true hero of this process is tidyr::unnest_wider()! It's analogous to tidyr:
 clean_twitter(will_smith)
 ```
 
-Above is the clean_twitter() function I wrote that cleans the .json data for you. It compiles all the above steps into one fundtion.
+Above is the clean_twitter() function I wrote that cleans the .json data for you. It compiles all the above steps into one function.
 
 ## Cancel Culture Data Cleaning
 
@@ -388,11 +388,11 @@ convert_to_data_frame <- function(formal_dfm){
 
 ## Will Smith
 
-```{r}
+```{r WS creating corpus}
 corp <- corpus(willsmith_deidentified, text_field = 1)
 ```
 
-```{r analysis}
+```{r WS text analysis}
 toks <- tokens(corp, remove_punct = T)
 dfmat <- dfm(toks)
 
@@ -407,18 +407,18 @@ pos_neg <- sentiment(dfmat) %>%
 
 dict_df <- left_join(pos_neg, ment_perc, by = "doc_id")
 
-d <- cbind(data, dict_df)
+ws <- cbind(willsmith_deidentified, dict_df)
 ```
 
-```{r Creating additional interesting parameters}
-d <- d %>% 
+```{r WS creating additional interesting parameters}
+ws <- ws %>% 
   mutate(
     valence = positive - negative
   )
 ```
 
-```{r Creating long-format for plotting purposes}
-data_long <- d %>% 
+```{r WS creating long-format for plotting purposes}
+ws_long <- ws %>% 
  pivot_longer(cols = c("negative", "positive", "neg_positive", 
                        "neg_negative", "Experience", "Agency", 
                        "PatientEmotion", "AgentEmotion", "MindOverall"),
@@ -429,11 +429,11 @@ data_long <- d %>%
 
 ## Cancel Culture
 
-```{r}
+```{r CC creating corpus}
 corp <- corpus(cancelculture_deidentified, text_field = 1)
 ```
 
-```{r analysis}
+```{r CC text analysis}
 toks <- tokens(corp, remove_punct = T)
 dfmat <- dfm(toks)
 
@@ -451,15 +451,15 @@ dict_df <- left_join(pos_neg, ment_perc, by = "doc_id")
 cc <- cbind(cancelculture_deidentified, dict_df)
 ```
 
-```{r Creating additional interesting parameters}
-d <- d %>% 
+```{r CC creating additional interesting parameters}
+cc <- cc %>% 
   mutate(
     valence = positive - negative
   )
 ```
 
-```{r Creating long-format for plotting purposes}
-data_long <- d %>% 
+```{r CC creating long-format for plotting purposes}
+cc_long <- cc %>% 
  pivot_longer(cols = c("negative", "positive", "neg_positive", 
                        "neg_negative", "Experience", "Agency", 
                        "PatientEmotion", "AgentEmotion", "MindOverall"),
@@ -468,5 +468,11 @@ data_long <- d %>%
   
 ```
 
+# Exporting Cleaned data to load in Shiny App
+
+```{r Exporting Data for Shiny App}
+save(cc, cc_long, ws, ws_long,
+     file = "shiny_data.RData")
+```
 
 
