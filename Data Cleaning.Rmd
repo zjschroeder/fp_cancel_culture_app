@@ -66,8 +66,6 @@ For researchers, the [Twitter API GUI for Researchers](https://developer.twitter
 
 ## Setting up Python
 
-
-
 ```{python setup, eval = FALSE}
 # import pandas as pd
 # import tweepy
@@ -233,7 +231,7 @@ json_to_nested_tibbles_parallel_process <- function(json_data){
   )
   )
 }
-
+json_data <- rjson::fromJSON(file = here::here("data/will_smith_full.json"))
 
 # Function for all cleaning
 clean_twitter <- function(json_data){
@@ -267,7 +265,7 @@ clean_twitter <- function(json_data){
   tictoc::tic()
     for(i in 1:loops){
       # Select 10000 at a time
-      parallel_output <- df[loop_call_left[i]:loop_call_right[i]] %>% 
+      parallel_output <- json_data[loop_call_left[i]:loop_call_right[i]] %>% 
         json_to_nested_tibbles_parallel_process()
       tibble_output <- tibble(parallel_output)
       data <- rbind(data, tidyr::unnest_wider(tibble_output, col = parallel_output))
@@ -282,6 +280,7 @@ clean_twitter <- function(json_data){
       envir = .GlobalEnv)
   tictoc::toc()
 }
+clean_twitter(will_smith)
 ```
 
 I'm using the [furrr package](https://cran.r-project.org/web/packages/furrr/index.html), which is a wrapper for purrr that super easily implements parallel processing. It uses the same functions and syntax as purrr, just with 'future_' added to the front and use plan() from the future package to specify the number of computer cores that you want to use while parallel processing. This is  key for the computationally heavy code that I'm using here. 
@@ -357,10 +356,9 @@ From here on out, you should be able to do everything with the code!
 #      file = "identifiable_data.RData")
 ```
 
-```{r}
+```{r Loading data for text analysis}
 load("deidentified_data.RData")
 ```
-
 
 # Text Analysis
 
@@ -375,6 +373,9 @@ dict_posneg <- data_dictionary_LSD2015
 ## Functions for Text Analysis
 
 ```{r Functions for Text Analysis}
+convert_to_data_frame <- function(formal_dfm){
+  convert(formal_dfm, to = "data.frame")
+}
 mental_perception <- function(dfmat){
   dfm_lookup(dfmat, dictionary = dict_mpd, levels = 1) %>% 
   convert_to_data_frame()
@@ -383,98 +384,71 @@ sentiment <- function(dfmat){
   dfm_lookup(dfmat, dictionary = dict_posneg, levels = 1) %>% 
   convert_to_data_frame()
 }
-convert_to_data_frame <- function(formal_dfm){
-  convert(formal_dfm, to = "data.frame")
+calculate_tweet_valence <- function(df){
+  df$valence <- map2_dbl(.x = df$positive, 
+                       .y = df$negative, 
+                         ~ .x - .y)
 }
+
+analyze_text <- function(df){
+  name <- deparse(substitute(df)) 
+  corp <- corpus(df, text_field = 1)
+  toks <- tokens(corp, remove_punct = T)
+  dfmat <- dfm(toks)
+  ment_perc <- mental_perception(dfmat)
+  pos_neg <- sentiment(dfmat) 
+  data <- cbind(df,
+    ment_perc %>% dplyr::select(!doc_id),
+    pos_neg %>% dplyr::select(!doc_id))
+  calculate_tweet_valence(data)
+  assign(
+     x = paste0(name, "_analyzed"),
+     value = data,
+     envir = .GlobalEnv)
+  assign(
+     x = paste0(name, "_text_other"),
+     value = list(corp, toks, dfmat, ment_perc, pos_neg),
+     envir = .GlobalEnv)
+}
+
+long_form_analyzed <- function(df){
+  data <- df %>% 
+    pivot_longer(cols = c("negative", "positive", "neg_positive", 
+                       "neg_negative", "Experience", "Agency", 
+                       "PatientEmotion", "AgentEmotion", "MindOverall"),
+              names_to = "text_measures", 
+              values_to = "text_score")
+  name = deparse(substitute(df))
+  assign(x = paste0(name, "_long"),
+         value = data,
+         envir = .GlobalEnv)}
+
+
+##### Debugging:
+# safe_analyze_text <- safely(analyze_text)
+# safe_analyze_text(willsmith_deidentified)
 ```
 
 ## Will Smith
 
 ```{r Will Smith Text Analysis}
-name <- deparse(substitute(ws)) 
-corp <- corpus(ws, text_field = 1)
-toks <- tokens(corp, remove_punct = T)
-dfmat <- dfm(toks)
-ment_perc <- mental_perception(dfmat)
-pos_neg <- sentiment(dfmat) 
-
-txt_dat <- left_join(pos_neg, ment_perc, by = "doc_id")
-
-data <- cbind(ws, txt_dat)
- # assign(
- #     x = paste0(name, "_analyzed"),
- #     value = data,
- #     envir = .GlobalEnv)
- # assign(
- #     x = paste0(name, "_text_other"),
- #     value = list(corp, toks, dfmat, ment_perc, pos_neg),
- #     envir = .GlobalEnv)
-
-# analyze_text(ws)
-```
-
-```{r}
-ws$valence <- map2_dbl(.x = data$positive, 
-                       .y = data$negative, 
-                         ~ .x - .y)
-```
-
-
-```{r WS creating long-format for plotting purposes}
-ws_long <- ws %>% 
- pivot_longer(cols = c("negative", "positive", "neg_positive", 
-                       "neg_negative", "Experience", "Agency", 
-                       "PatientEmotion", "AgentEmotion", "MindOverall"),
-              names_to = "text_measures", 
-              values_to = "text_score")
-  
+analyze_text(willsmith_deidentified)
+long_form_analyzed(willsmith_deidentified_analyzed)
 ```
 
 ## Cancel Culture
 
-```{r CC creating corpus}
-corp <- corpus(cancelculture_deidentified, text_field = 1)
-```
-
-```{r CC text analysis}
-toks <- tokens(corp, remove_punct = T)
-dfmat <- dfm(toks)
-
-# MENTAL PERCEPTION
-
-ment_perc <- mental_perception(dfmat) %>% 
-  convert_to_data_frame()
-
-# POSITIVE AND NEGATIVE TERMS
-pos_neg <- sentiment(dfmat) %>% 
-  convert_to_data_frame()
-
-dict_df <- left_join(pos_neg, ment_perc, by = "doc_id")
-
-cc <- cbind(cancelculture_deidentified, dict_df)
-```
-
-```{r CC creating additional interesting parameters}
-cc <- cc %>% 
-  mutate(
-    valence = positive - negative
-  )
-```
-
-```{r CC creating long-format for plotting purposes}
-cc_long <- cc %>% 
- pivot_longer(cols = c("negative", "positive", "neg_positive", 
-                       "neg_negative", "Experience", "Agency", 
-                       "PatientEmotion", "AgentEmotion", "MindOverall"),
-              names_to = "text_measures", 
-              values_to = "text_score")
-  
+```{r Cancel Culture Text Analysis}
+analyze_text(cancelculture_deidentified)
+long_form_analyzed(cancelculture_deidentified_analyzed)
 ```
 
 # Exporting Cleaned data to load in Shiny App
 
 ```{r Exporting Data for Shiny App}
-save(cc, cc_long, ws, ws_long,
+save(cancelculture_deidentified_analyzed, 
+     cancelculture_deidentified_analyzed_long, 
+     willsmith_deidentified_analyzed, willsmith_deidentified_analyzed_long,
      file = "shiny_data.RData")
 ```
 

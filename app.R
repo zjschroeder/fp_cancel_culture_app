@@ -2,52 +2,19 @@
 
 ### LIBRARIES 
 ########################### GENERAL PACKAGES
-library(tidyr) # 
-library(rjson) # Importing json files
 library(purrr)
 library(tidyverse)
-library(lubridate)
-library(furrr)
 library(plotly) # for touchable plots
-library(psych)
-library(tictoc) # For timimg long functions
 library(groupdata2) # For splitting data in the super-large lists
-library(reactable)
 library(stringr)
-
-########################### TWEET COLLECTION: RETICULATE AND PYTHON PACKAGES
-
-library(tidyverse)
-library(reticulate)
-### These are the python packages I installed using the package.
-# reticulate::py_install("pandas")
-# reticulate::py_install("tweepy")
-# reticulate::py_install("numpy")
-# reticulate::py_install("time")
-
-########################### TEXT ANALYSIS: QUANTEDA SUITE
-library(quanteda)
-library(quanteda.dictionaries) # includes liwcalike function
-library(quanteda.corpora) # Datasets & tutorials for quanteda
-library(quanteda.textmodels)
-library(quanteda.textstats)
-library(quanteda.textplots)
-library(tm)
-
-# Used for reading in text
-library(readtext)
-
-########################### SHINY-SPECIFIC PACKAGES
-# These packages will also be called in Shiny, but I figure it's useful to them here as well
-library(thematic)
-library(bslib)
+library(lubridate)
 library(shiny)
-
 
 ########################## LOADING DATA
 load("shiny_data.RData")
+d <- willsmith_deidentified_analyzed
 
-fig_data <- ws %>% 
+fig_data <- willsmith_deidentified_analyzed %>% 
   dplyr::group_by(round_date(tweet_date, 
                              unit = "day")) %>% 
   summarise(.groups = 'keep',
@@ -56,10 +23,7 @@ fig_data <- ws %>%
 
 names(fig_data)[1] <- "tweet_date"
 
-
-
 ########################## UI
-
 
 ui <- fluidPage(
   
@@ -75,7 +39,7 @@ ui <- fluidPage(
             label = "See Analysis of Tweets By:",
             choices = c("Verified Users", "Unverified Users", "All Users"),
             selected = "Verified Users",
-            inline = TRUE
+            inline = FALSE
           )
         ),
         mainPanel(
@@ -91,25 +55,30 @@ ui <- fluidPage(
           width = 2,
           radioButtons(
             inputId = "y_axis",
-            label = "What kind of language should we code for?",
-            choices = c("negative", "positive", "valence"),
-            selected = "negative",
-            inline = TRUE
+            label = "Tweet Content",
+            choices = c("followers_count", "following_count", "tweet_count"),
+            selected = "followers_count",
+            inline = FALSE
           ),
           radioButtons(
             inputId = "x_axis",
-            label = "Types of Twitter Users",
-            choices = c("followers_count", "following_count", "tweet_count"),
-            selected = "followers_count",
-            inline = TRUE
+            label = "Tweet Variables",
+            choices = c("like_count", "reply_count", "retweet_count"),
+            selected = "like_count",
+            inline = FALSE
           ),
+          radioButtons(
+            inputId = "verified",
+            label = "Is Verified?",
+            choices = c("Yes", "No"),
+            selected = "No"
+          )
         ),
         mainPanel(
-          plotlyOutput("distPlot_cc", height = "800px")
+          plotOutput("distPlot_cc", height = "800px")
         )
       )
     )
-    
   )
 )
 
@@ -133,15 +102,15 @@ server <- function(input, output, session) {
   #                   ntweet = n()) %>% 
   #         as_tibble() 
 
+  
   output$distPlot_ws <- renderPlotly({
-  ############ PLOTLY CODE EXAMPLE
    fig <- plot_ly(fig_data, 
                   name = "Timeline of Tweets Cancelling Will Smith",
                   x = ~tweet_date, 
                   y = ~ntweet, 
                   type = 'scatter', 
                   mode = 'lines+markers') 
-   fig <- fig %>% layout(title = "Timeline of Tweets Cancelling Will Smith",
+   fig %>% layout(title = "Timeline of Tweets Cancelling Will Smith",
                           paper_bgcolor='rgb(255,255,255)', 
                           plot_bgcolor='rgb(229,229,229)',
                           xaxis = list(title = "Date",
@@ -160,79 +129,21 @@ server <- function(input, output, session) {
                                       tickcolor = 'rgb(127,127,127)',
                                       ticks = 'outside',
                                       zeroline = FALSE))
-   fig
   })
   
-  output$distPlot_cc <- renderPlotly({
-    fig <- plot_ly(cc, 
-                   name = "What do different types of Twitter Users think about Cancel Culture?",
-                   x = ~followers_count, 
-                   y = ~negative, 
-                   type = 'scatter', 
-                   mode = 'markers') 
-    fig <- fig %>% layout(title = "What do different types of Twitter Users think about Cancel Culture?",
-                          paper_bgcolor='rgb(255,255,255)', plot_bgcolor='rgb(229,229,229)',
-                          xaxis = list(title = "followers_count",
-                                       gridcolor = 'rgb(255,255,255)',
-                                       showgrid = TRUE,
-                                       showline = FALSE,
-                                       showticklabels = TRUE,
-                                       tickcolor = 'rgb(127,127,127)',
-                                       ticks = 'outside',
-                                       zeroline = FALSE),
-                          yaxis = list(title = "negative",
-                                       gridcolor = 'rgb(255,255,255)',
-                                       showgrid = TRUE,
-                                       showline = FALSE,
-                                       showticklabels = TRUE,
-                                       tickcolor = 'rgb(127,127,127)',
-                                       ticks = 'outside',
-                                       zeroline = FALSE))
-    fig
-    
-   # # Aagain, alas, the selectable inputs aren't working :(
-   #df <- tibble(
-   #  xx = cc %>% select(sym(input$x_axis)),
-   #  yy = cc %>% select(sym(input$y_axis))
-   #)
-   #fig <- plot_ly(df, 
-   #               name = "What do different types of Twitter Users think about Cancel Culture?",
-   #               x = ~xx, 
-   #               y = ~yy, 
-   #               type = 'scatter', 
-   #               mode = 'lines+markers') 
-   #fig <- fig %>% layout(title = "What do different types of Twitter Users think about Cancel Culture?",
-   #                      paper_bgcolor='rgb(255,255,255)', plot_bgcolor='rgb(229,229,229)',
-   #                      xaxis = list(title = paste0(input$x_axis),
-   #                                   gridcolor = 'rgb(255,255,255)',
-   #                                   showgrid = TRUE,
-   #                                   showline = FALSE,
-   #                                   showticklabels = TRUE,
-   #                                   tickcolor = 'rgb(127,127,127)',
-   #                                   ticks = 'outside',
-   #                                   zeroline = FALSE),
-   #                      yaxis = list(title = paste0(input$y_axis),
-   #                                   gridcolor = 'rgb(255,255,255)',
-   #                                   showgrid = TRUE,
-   #                                   showline = FALSE,
-   #                                   showticklabels = TRUE,
-   #                                   tickcolor = 'rgb(127,127,127)',
-   #                                   ticks = 'outside',
-   #                                   zeroline = FALSE))
-   #fig
+  
+  output$distPlot_cc <- renderPlot({
+    willsmith_deidentified_analyzed %>% 
+      ggplot(aes(x = scale(!!sym(input$x_axis)),
+                 y = scale(!!sym(input$y_axis)))) +
+         geom_point()
   })
 }
 ########################## RUN
 shinyApp(ui = ui, server = server)
 
 
-
-
-
-
-
-
-
+#### SHINY PROFILER AND PROFILING CODE; arrow package
 
 
 
