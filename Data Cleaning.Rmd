@@ -453,3 +453,6 @@ save(cancelculture_deidentified_analyzed,
 ```
 
 
+<!-- Peer review feedback -->
+
+<!-- This was a very resourceful script! Though I haven't done much with JSON data and API, I've been wondering about it since the Pokemon example in the class. It helped to see another instance. I think the data cleaning and functions were neat. I was also able to run the app. I'm guessing you're still working on the visuals, and the app. For the second visual, it might help to do a log-transformation. It might also help to support both visuals with a write-up of what the project is about and how to interpret the data. Will look forward for the final version of this project! -->
