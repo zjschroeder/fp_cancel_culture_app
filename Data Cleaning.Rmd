@@ -285,9 +285,13 @@ clean_twitter(will_smith)
 
 I'm using the [furrr package](https://cran.r-project.org/web/packages/furrr/index.html), which is a wrapper for purrr that super easily implements parallel processing. It uses the same functions and syntax as purrr, just with 'future_' added to the front and use plan() from the future package to specify the number of computer cores that you want to use while parallel processing. This is  key for the computationally heavy code that I'm using here. 
 
+
 ## Will Smith Data Cleaning
 
 ```{r Loading Will Smith data}
+
+# ahh this is fun (re:furr) - i'd heard of the package but wasn't aware of what the added value above purr was. i'll definitely be looking into using furr for some future projects
+
  will_smith <- rjson::fromJSON(file = here::here("data/will_smith_full.json"))
 ```
 
@@ -389,6 +393,8 @@ calculate_tweet_valence <- function(df){
                        .y = df$negative, 
                          ~ .x - .y)
 }
+
+## it's amazing how brief this code is, i've never done a sentiment analysis but i assumed it would be much more involved. great work getting it pared down so much
 
 analyze_text <- function(df){
   name <- deparse(substitute(df)) 
