@@ -11,6 +11,10 @@ Hi! These are data I collected from the Twitter API. Unfortunately, part of the 
 
 The [Twitter API](https://developer.twitter.com/en/docs/twitter-api) itself is really cool, and they're not afraid to give you a LOT of data once you get an academic researcher account, but their student accounts are instant-access and very easy to use if you want to dive into the messy world of Tweets I'd also recommend exploring the [academictwitteR](https://github.com/cjbarrie/academictwitteR) package. It only works with a [Twitter API Academic Researcher](https://developer.twitter.com/en/products/twitter-api/academic-research) account. To secure an academic researcher Twitter API account, you need to propose a specific study and provide evidence that you're affiliated with a university. The academic researcher application isn't difficult, but its a little time-consuming and, if you make an error or are rejected, there is currently no *revise-and-resubmit*, so you'll need to make another Twitter account and apply again. They got back to me within 24 hours, but from what I see, response times seem pretty variably.
 
+[Thanks for this note -- super helpful! I am curious about why you chose to walk through this process in R, especially since it seems like there are things that Python could do better. Perhaps a mention of that in your intro might be helpful, even if you are going to publish this app and will instead create some sort of method section inseat. 
+
+Also, not sure if you like `p_load()` from the pacman package, but it can make loading libraries a bit more straighforward. - AG]
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message = FALSE)
 ```
@@ -247,12 +251,14 @@ clean_twitter <- function(json_data){
     clean_output <- tibble(NA)
     data <- NA
   # Automatically calculating how many loops
+    # why are you using 10000? either way, can set that number here
+    loop_count <- 10000
    total_groups <- max(as.numeric(groupdata2::group_factor(json_data,
-                                        n = 10000,
+                                        n = loop_count,
                                         method = "greedy")))
    loops <- total_groups - 1
-   loop_call_left <- c(0:loops) * 10000 + 1
-   loop_call_right <- c(0:(loops)) * 10000 + 10000
+   loop_call_left <- c(0:loops) * loop_count + 1
+   loop_call_right <- c(0:(loops)) * loop_count + loop_count
   # Final items; start with these because it sets up the tibble, and those items don't fit into the memory-saving bins
     parallel_output <- json_data[loop_call_right[loops]:length(json_data)] %>% 
       json_to_nested_tibbles_parallel_process()
@@ -428,6 +434,8 @@ long_form_analyzed <- function(df){
 # safe_analyze_text <- safely(analyze_text)
 # safe_analyze_text(willsmith_deidentified)
 ```
+
+[quick note: not really sure what neg_positive or neg-negative is, but both only have 0s for for Will Smith and Cancel Culture. - AG]
 
 ## Will Smith
 
