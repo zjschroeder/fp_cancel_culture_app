@@ -47,7 +47,7 @@ ui <- fluidPage(
         )
       )
     ),
-    
+   #Note for the sidebar in the APP - some of the labels hang over the edge of the sidebar and on the Cancel Culture tab the radio buttons do not work 
     tabPanel(
       title = "Cancel Culture",
       sidebarLayout(
@@ -56,26 +56,27 @@ ui <- fluidPage(
           radioButtons(
             inputId = "y_axis",
             label = "Tweet Content",
-            choices = c("followers_count", "following_count", "tweet_count"),
-            selected = "followers_count",
+            choices = c("Followers_count", "Following_count", "Tweet_count"),
+            #Not sure I see the difference between Followers and Following - might need to clarify
+            selected = "Followers_count", #The underscore seems kind of formal for an APP - maybe just "Count of Followers", etc.
             inline = FALSE
           ),
           radioButtons(
             inputId = "x_axis",
             label = "Tweet Variables",
-            choices = c("like_count", "reply_count", "retweet_count"),
-            selected = "like_count",
+            choices = c("Like_count", "Reply_count", "Retweet_count"),
+            selected = "Like_count",
             inline = FALSE
           ),
           radioButtons(
             inputId = "verified",
-            label = "Is Verified?",
+            label = "Is Verified?", #You might want to clarify this a bit more as it is unclear what's been verified
             choices = c("Yes", "No"),
             selected = "No"
           )
         ),
         mainPanel(
-          plotOutput("distPlot_cc", height = "800px")
+          plotOutput("distPlot_cc", height = "800px")#The axis labels for this plot should be initial capped and maybe clarify the scale in a note on the plot
         )
       )
     )
