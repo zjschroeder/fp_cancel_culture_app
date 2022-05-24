@@ -11,6 +11,8 @@ Hi! These are data I collected from the Twitter API. Unfortunately, part of the 
 
 The [Twitter API](https://developer.twitter.com/en/docs/twitter-api) itself is really cool, and they're not afraid to give you a LOT of data once you get an academic researcher account, but their student accounts are instant-access and very easy to use if you want to dive into the messy world of Tweets I'd also recommend exploring the [academictwitteR](https://github.com/cjbarrie/academictwitteR) package. It only works with a [Twitter API Academic Researcher](https://developer.twitter.com/en/products/twitter-api/academic-research) account. To secure an academic researcher Twitter API account, you need to propose a specific study and provide evidence that you're affiliated with a university. The academic researcher application isn't difficult, but its a little time-consuming and, if you make an error or are rejected, there is currently no *revise-and-resubmit*, so you'll need to make another Twitter account and apply again. They got back to me within 24 hours, but from what I see, response times seem pretty variably.
 
+## Thanks for all that extensive information! I tried to collect data from Twitter API several years ago, and it was such a pain, they blocked my account every single day haha:) It looks like a process changed a little bit, and if I try to do this again in the future, I would refer to these instructions! 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(message = FALSE)
 ```
@@ -25,7 +27,7 @@ library(lubridate)
 library(furrr)
 library(plotly) # for touchable plots
 library(psych)
-library(tictoc) # For timimg long functions
+library(tictoc) # For timimg long functions #so, that is not the package for the time.sleep function to wait 1 second between each iteration, correct? that what is the purpose of timing here? 
 library(groupdata2) # For splitting data in the super-large lists
 
 ########################### TWEET COLLECTION: RETICULATE AND PYTHON PACKAGES
@@ -63,6 +65,8 @@ library(readtext)
 Infinite gratitude to [Professor Foote](https://youtu.be/rQEsIs9LERM), [github repo](https://github.com/jdfoote/Intro-to-Programming-and-Data-Science/blob/fall2021/extra_topics/twitter_v2_example.ipynb) and [R-Ladies Baltimore](https://youtu.be/U3ByGh8RmSc) whose work is very useful in (1) starting with Reticulate and (2) using TweePy (the Python version of the rtweet package). My initial intention was to use the rtweet package, but I ran into errors that I *think* are due to the recent release of the Twitter API OAuth 2.0.
 
 For researchers, the [Twitter API GUI for Researchers](https://developer.twitter.com/apitools/downloader) is a really useful tool. Although I found it preferable (and more reproducible) to write out the search query code using one of the packages/libraries mentioned above, the GUI tells you how many tweets you're about to download (which is a good heads up) and helps write the query syntax if you're new to using the Twitter API. The GUI is also MUCH faster than our python code here.
+
+#Very useful info! Thank you! I remember I never ended up making 'rtweet' work for me! 
 
 ## Setting up Python
 
@@ -129,6 +133,8 @@ We first build an empty list (from pandas, not technically a list in R's terms, 
 # 
 # # Change this list of dictionaries into a dataframe
 # df = pd.DataFrame(result)
+
+## I see that you use the 'author_followers' further to count the number of followers. I wonder if the followers data could be used to look into the social network side of the question. 
 ```
 
 The above code is a loop that sorts the JSON data into the correct format. This allows us to actually use it when we import it into R for cleaning and further manipulation (below). It is much easier to do this in Python, but we're soon to get to R!
@@ -189,6 +195,7 @@ json_to_nested_tibbles <- function(json_data){
   )
   )
 }
+#I appreciate you keeping the function without the parallel processing as well! easier to disect this way! 
 
 # WITH PARALLEL PROCESSING
 json_to_nested_tibbles_parallel_process <- function(json_data){
@@ -371,6 +378,8 @@ dict_posneg <- data_dictionary_LSD2015
 ```
 
 ## Functions for Text Analysis
+
+## Very cool! How are 'mental_perception' and 'sentiment' different though? What are the possible categories in 'mental perception'? I understand it has to do what is in the dictionaries that you use, so I would benefit from some comment on what those distionaries are, and how matching the compnent of the tweet with the dictinary entry would yield this or that characteristic. 
 
 ```{r Functions for Text Analysis}
 convert_to_data_frame <- function(formal_dfm){
