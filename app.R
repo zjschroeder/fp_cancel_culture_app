@@ -19,7 +19,7 @@ fig_data <- list(NULL)
 for(i in seq_along(analyzed_DI)){
   fig_data[[i]] <- analyzed_DI[[i]] %>% 
     dplyr::group_by(round_date(tweet_date, 
-                               unit = "month")) %>% 
+                               unit = "week")) %>% 
     summarise(.groups = 'keep',
               ntweet = n()) %>% 
     as_tibble() 
@@ -37,10 +37,34 @@ targets <- c("BBQ Becky",
              "Will Smith", 
              "Doja Cat")
 
+######### Map_dbl negativity correlations
+
+negativity_retweets_cor <- map(analyzed_DI, ~split(.x, .x$verified) %>% 
+  map_dbl( ~cor(.x$retweet_count, .x$negative))) 
+
+negativity_correlations <- unlist(negativity_retweets_cor) %>% 
+  round(., 2) %>% 
+  matrix(ncol = 2, byrow = TRUE) %>% 
+  as_tibble()
+
+negativity_correlations <- negativity_correlations %>% 
+  mutate(
+    targets = targets
+  )
+
+names(negativity_correlations)  <- c("Not Verified", "Verified", "Cancel-ee")
+
+######### purrr::nest %>% mutate() %>% unnest()
+data <- analyzed_DI$bbqbecky
+
+engagement <- data %>% 
+  group_by(negative) %>% 
+  nest() %>% 
+  mutate(map(.x = data, .f = ~mean(.x$retweet_count, na.rm = T)))
+
 ########################## UI
 
 ui <- fluidPage(
-  
   navbarPage(
     title = "A Deep Dive into Cancel Culture",
     tabPanel(
@@ -67,7 +91,6 @@ ui <- fluidPage(
         )
       )
     ),
-    
     tabPanel(
       title = "Cancel Culture",
       sidebarLayout(
@@ -109,6 +132,8 @@ ui <- fluidPage(
 )
 
 
+
+
 ########################## SERVER
 server <- function(input, output, session) {
   
@@ -143,8 +168,6 @@ server <- function(input, output, session) {
                                 ticks = 'outside',
                                 zeroline = FALSE))
   })
-  
-  
   outVarcc <- reactive({
     temp <- analyzed_DI[[as.numeric(input$target_cc)]]
   })
@@ -158,6 +181,7 @@ server <- function(input, output, session) {
       geom_smooth()
   })
 }
+
 ########################## RUN
 shinyApp(ui = ui, server = server)
 

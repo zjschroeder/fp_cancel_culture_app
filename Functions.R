@@ -210,4 +210,3 @@ deidentify <- function(df){
 
 ##### Debugging:
 safe_analyze_text <- safely(analyze_text)
-safe_analyze_text(willsmith_deidentified)

@@ -188,6 +188,11 @@ cancel_culture_targets <- c("kanye", "dojacaat", "lindsayellis", "rkelly", "bbqb
 map(cancel_culture_targets, import_and_clean_twitter)
 ```
 
+```{r}
+import_and_clean_twitter("bbqbecky")
+```
+
+
 ## Cancel Culture Generally
 
 In this section, I repeat the above process but with data I scraped using the following query: 
