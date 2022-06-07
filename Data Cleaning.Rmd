@@ -73,68 +73,68 @@ For researchers, the [Twitter API GUI for Researchers](https://developer.twitter
 ## Setting up Python
 
 ```{python setup, eval = FALSE}
-# import pandas as pd
-# import tweepy
-# import numpy
-# import time
-# import json
-# from twitter_authentication import bearer_token
-# 
-# client = tweepy.Client(bearer_token, wait_on_rate_limit = True)
+import pandas as pd
+import tweepy
+import numpy
+import time
+import json
+from twitter_authentication import bearer_token
+
+client = tweepy.Client(bearer_token, wait_on_rate_limit = True)
 ```
 
 ## Query Code and Explanation: 
 
 ```{python will smith query, eval = FALSE}
-#will_smith_full = []
-#for response in tweepy.Paginator(client.search_all_tweets,
-# query = '"cancel will smith" OR cancelwillsmith OR "#CancelWillSmith" OR
-# "#cancelwillsmith" OR "will smith is cancelled" OR 
-# "is will smith cancelled" lang:en -is:retweet',
-# user_fields = ['username', 'public_metrics', 'description', 'location', #'verified'],
-# tweet_fields = ['created_at', 'geo', 'public_metrics', 'text'],
-# expansions = 'author_id',
-# start_time = '2006-03-22T00:00:00Z',
-# end_time = '2018-03-22T09:00:00Z'):
-# time.sleep(1) 
-# will_smith_full(response)
+will_smith_full = []
+for response in tweepy.Paginator(client.search_all_tweets,
+ query = '"cancel will smith" OR cancelwillsmith OR "#CancelWillSmith" OR
+ "#cancelwillsmith" OR "will smith is cancelled" OR 
+ "is will smith cancelled" lang:en -is:retweet',
+ user_fields = ['username', 'public_metrics', 'description', 'location', #'verified'],
+ tweet_fields = ['created_at', 'geo', 'public_metrics', 'text'],
+ expansions = 'author_id',
+ start_time = '2006-03-22T00:00:00Z',
+ end_time = '2018-03-22T09:00:00Z'):
+ time.sleep(1) 
+ will_smith_full(response)
 ```
 
 We first build an empty list (from pandas, not technically a list in R's terms, but close enough for government work). We then use the tweepy.Paginator function to query all the *Will Smith* tweets described in the query argument (which includes filtering for only English tweets and not including retweets). We then define the user data (user_fields) and tweet-specific data (tweet_fields) we wish to collect. The expansions argument includes a unique author_id that will allow us to connect the user and tweet data to each other. We then have the start and end time arguments, which specify the date range we're pulling from. Finally, (Per Professor Foote's suggestion) we include the time.sleep function to wait 1 second between each iteration. This meets Twitter's request that you make only one request per second. Finally, the append function adds the most recent search to our growing list
 
 ```{python Clean Will Smith Code}
-# result = []
-# user_dict = {}
-# # Loop through each response object
-# for response in will_smith_full:
-#     # Take all of the users, and put them into a dictionary of dictionaries # with the info we want to keep
-#     for user in response.includes['users']:
-#         user_dict[user.id] = {'username': user.username, 
-#                               'followers': # user.public_metrics['followers_count'],
-#                               'tweets': user.public_metrics['tweet_count'],
-#                               'description': user.description,
-#                               'location': user.location
-#                              }
-#     for tweet in response.data:
-#         # For each tweet, find the author's information
-#         author_info = user_dict[tweet.author_id]
-#         # Put all of the information we want to keep in a single dictionary # for each tweet
-#         result.append({'author_id': tweet.author_id, 
-#                        'username': author_info['username'],
-#                        'author_followers': author_info['followers'],
-#                        'author_tweets': author_info['tweets'],
-#                        'author_description': author_info['description'],
-#                        'author_location': author_info['location'],
-#                        'text': tweet.text,
-#                        'created_at': tweet.created_at,
-#                        'retweets': tweet.public_metrics['retweet_count'],
-#                        'replies': tweet.public_metrics['reply_count'],
-#                        'likes': tweet.public_metrics['like_count'],
-#                        'quote_count': tweet.public_metrics['quote_count']
-#                       })
-# 
-# # Change this list of dictionaries into a dataframe
-# df = pd.DataFrame(result)
+ result = []
+ user_dict = {}
+ # Loop through each response object
+ for response in will_smith_full:
+     # Take all of the users, and put them into a dictionary of dictionaries # with the info we want to keep
+     for user in response.includes['users']:
+         user_dict[user.id] = {'username': user.username, 
+                               'followers': # user.public_metrics['followers_count'],
+                               'tweets': user.public_metrics['tweet_count'],
+                               'description': user.description,
+                               'location': user.location
+                              }
+     for tweet in response.data:
+         # For each tweet, find the author's information
+         author_info = user_dict[tweet.author_id]
+         # Put all of the information we want to keep in a single dictionary # for each tweet
+         result.append({'author_id': tweet.author_id, 
+                        'username': author_info['username'],
+                        'author_followers': author_info['followers'],
+                        'author_tweets': author_info['tweets'],
+                        'author_description': author_info['description'],
+                        'author_location': author_info['location'],
+                        'text': tweet.text,
+                        'created_at': tweet.created_at,
+                        'retweets': tweet.public_metrics['retweet_count'],
+                        'replies': tweet.public_metrics['reply_count'],
+                        'likes': tweet.public_metrics['like_count'],
+                        'quote_count': tweet.public_metrics['quote_count']
+                       })
+ 
+ # Change this list of dictionaries into a dataframe
+ df = pd.DataFrame(result)
 ```
 
 The above code is a loop that sorts the JSON data into the correct format. This allows us to actually use it when we import it into R for cleaning and further manipulation (below). It is much easier to do this in Python, but we're soon to get to R!
@@ -142,9 +142,9 @@ The above code is a loop that sorts the JSON data into the correct format. This 
 ## Exporting Queried Data Queried Data and Explanation
 
 ```{python exporting twitter data, eval = FALSE}
-# json_string = json.dumps(df)
-# with open('will_smith_full.json', 'w') as outfile:
-#     outfile.write(json_string)
+json_string = json.dumps(df)
+with open('will_smith_full.json', 'w') as outfile:
+   outfile.write(json_string)
 ```
 
 All of the above code should work with some tweaking, but I lack the Python expertise to guarantee *true* reproducibility. Check out the resources I linked, they'll do a much better job than I at explaining this!
@@ -153,7 +153,7 @@ I'm using the [furrr package](https://cran.r-project.org/web/packages/furrr/inde
 
 ## Will Smith Data Cleaning
 
-```{r Loading Will Smith data}
+```{r Loading Will Smith data, eval = FALSE}
 will_smith <- rjson::fromJSON(file = here::here("data/will_smith_full.json"))
 ```
 
@@ -161,21 +161,21 @@ will_smith <- rjson::fromJSON(file = here::here("data/will_smith_full.json"))
 # NO PARALLEL PROCESSING
 # ws_no_parallel <- json_to_nested_tibbles(will_smith)
 
-# WITH PARALLEL PROCESSING
-# future::plan(multisession, workers = 6) # Set the number of cores you'll use
-# ws_parallel <- json_to_nested_tibbles_parallel_process(will_smith)
+WITH PARALLEL PROCESSING
+future::plan(multisession, workers = 6) # Set the number of cores you'll use
+ws_parallel <- json_to_nested_tibbles_parallel_process(will_smith)
 ```
 
 If you want to run this code to clean your own data, you can! If you download data with these same user and tweet fields, the functions should generalize - I've used it on other data here as well. **IMPORTANT** I'd recommend either using the json_to_nested_tibbles() function without parallel processing, *or* making sure to edit the future::plan() function's "workers" argument to set the number of cores to match your computer's specs. I *think* you can use parallelly::availableCores() instead of specifying the workers argument and it'll check automatically, but don't quote me on that. I don't know if calling too many cores will just give an error or if it'll make your computer catch fire, so... good luck!
 
 ```{r JSON list to usable tibble, eval = FALSE}
-# ws_tibble <- tibble(ws_parallel)
-# ws <- tidyr::unnest_wider(ws_tibble, col = ws_parallel)
+ ws_tibble <- tibble(ws_parallel)
+ ws <- tidyr::unnest_wider(ws_tibble, col = ws_parallel)
 ```
 
 The true hero of this process is tidyr::unnest_wider()! It's analogous to tidyr::pivot_wider(), except pivots a tibble column of lists to a single-tibble wide format. 
 
-```{r Will Smith abbrev with clean_twitter(), cache=TRUE, eval = TRUE}
+```{r Will Smith abbrev with clean_twitter(), cache=TRUE, eval = FALSE}
 clean_twitter(will_smith)
 ```
 
@@ -183,78 +183,12 @@ Above is the clean_twitter() function I wrote that cleans the .json data for you
 
 ## Run on other exemplars
 
-### Celebrities
-
-#### Kanye
-
-```{r Kanye West Import}
-kanye <- rjson::fromJSON(file = here::here("data/kanyewest.json"))
-
-clean_twitter(kanye)  
+```{r Kanye West Import, eval = FALSE}
+cancel_culture_targets <- c("kanye", "dojacaat", "lindsayellis", "rkelly", "bbqbecky", "permitpatty", "justinesacco")
+map(cancel_culture_targets, import_and_clean_twitter)
 ```
 
-#### dojacatiscancelledparty
-
-```{r doja cat}
-doja <- rjson::fromJSON(file = here::here("data/dojacat.json"))
-
-clean_twitter(doja)  
-```
-
-#### Lindsay Ellis
-
-```{r}
-lindsayellis <- rjson::fromJSON(file = here::here("data/lindsayellis.json"))
-
-clean_twitter(lindsayellis) 
-```
-
-#### MuteRKelly
-
-```{r}
-rkelly <- rjson::fromJSON(file = here::here("data/rkelly.json"))
-
-clean_twitter(rkelly) 
-```
-
-#### EXPORT
-
-```{r}
-save(kanye_clean, doja_clean, rkelly_clean, lindsayellis_clean, file = "celebrity_cancel.Rdata")
-```
-
-
-### Non Celebrities
-
-#### bbqbecky
-
-```{r}
-bbqbecky <- rjson::fromJSON(file = here::here("data/bbqbecky.json"))
-
-clean_twitter(bbqbecky) 
-```
-
-#### permitpatty
-
-```{r}
-permitpatty <- rjson::fromJSON(file = here::here("data/permitpatty.json"))
-
-clean_twitter(permitpatty) 
-```
-
-#### hasjustinelanded hasjustinelandedyet justinesacco
-
-```{r}
-justinesacco <- rjson::fromJSON(file = here::here("data/justinesacco.json"))
-
-clean_twitter(justinesacco) 
-```
-
-## Cancel Culture-wide Terms
-
-### Mask off
-
-### Cancel Culture Data Cleaning
+## Cancel Culture Generally
 
 In this section, I repeat the above process but with data I scraped using the following query: 
 
@@ -264,16 +198,11 @@ All other aspects of the API call were the same.
 
 In addition to Twitter's deindividuation, the other reason I have you not running the cleaning code is that it takes a long time (approx 45 minutes on my machine per dataset) and is very computationally demanding.
 
-```{r Import and clean: 2022 Cancel Culture Data, eval = FALSE, cache = TRUE}
-# cancelculture_22 <- rjson::fromJSON(file = here::here("data/cc_2022_lite.json"))
-# 
-# clean_twitter(cancelculture_22)                                    
-```
+```{r Import and clean: Cancel Culture Data, eval = FALSE, cache = TRUE}
+cancelculture <- list(cancelculture_22 = rjson::fromJSON(file = here::here("data/cc_2022_lite.json")),
+                     cancelculture_21 <- rjson::fromJSON(file = here::here("data/cc_060121_010122_lite.json")))
 
-```{r Import and clean: 2021 Cancel Culture Data, eval = FALSE, cache = TRUE}
-# cancelculture_21 <- rjson::fromJSON(file = here::here("data/cc_060121_010122_lite.json"))
-# 
-# clean_twitter(cancelculture_21)                                    
+map(cancelculture, clean_twitter)
 ```
 
 ## De-identifying, Exporting & Importing 
@@ -281,36 +210,24 @@ In addition to Twitter's deindividuation, the other reason I have you not runnin
 **NOTE** The exporting and importing of data served two purposes: first, it allowed me to have deidentified data that could be viewed by the peer-reviewers and second it saved the files so I didn't inadvertently lose things when R crashed on me. As it's no longer necessary, I've commented out the unnecessary code. Unfortunately, it's still too large for github to handle, so I have to include all data files in the .gitignore
 
 ```{r De-identifying twitter data, eval = FALSE}
-# cancelculture <- rbind(cancelculture_21_clean, cancelculture_22_clean)
-# cancelculture_deidentified <- cancelculture %>% 
-#   select(text, tweet_date, retweet_count, reply_count, like_count, quote_count, followers_count, # following_count, tweet_count, verified, protected)
-   
+cancelculture <- rbind(cancelculture_21_clean, cancelculture_22_clean)
+deidentify(cancelculture)
 ```
 
-```{r export, eval = FALSE}
-# save(cancelculture_deidentified, willsmith_deidentified, 
-#      file = "deidentified_data.RData")
-# save(cancelculture, will_smith_clean, 
-#      file = "identifiable_data.RData")
-# save(bbqbecky_clean, permitpatty_clean, justinesacco_clean, file = "new_cancel_data.Rdata")
-```
+```{r Loading data for text analysis NOT DEIDENTIFIED, eval = FALSE}
+load("deidentified_data.RData")
+load("new_cancel_data.Rdata")
+load("celebrity_cancel.Rdata")
+celeb_data <- list(
+ bbqbecky = bbqbecky_clean, 
+ justinesacco = justinesacco_clean, 
+ permitpatty = permitpatty_clean,
+ kanye = kanye_clean, 
+ lindsayellis = lindsayellis_clean, 
+ rkelly = rkelly_clean, 
+ willsmith = willsmith_deidentified, 
+ dojacat = doja_clean)
 
-```{r Loading data for text analysis NOT DEIDENTIFIED}
-# load("deidentified_data.RData")
-# load("new_cancel_data.Rdata")
-# load("celebrity_cancel.Rdata")
-# celeb_data <- list(
-#   bbqbecky = bbqbecky_clean, 
-#   justinesacco = justinesacco_clean, 
-#   permitpatty = permitpatty_clean,
-#   kanye = kanye_clean, 
-#   lindsayellis = lindsayellis_clean, 
-#   rkelly = rkelly_clean, 
-#   willsmith = willsmith_deidentified, 
-#   dojacat = doja_clean)
-```
-
-```{r}
 celeb_data_DI <- map(celeb_data, deidentify)
 ```
 
@@ -326,8 +243,7 @@ dict_posneg <- data_dictionary_LSD2015
 
 ## Text Analysis
 
-```{r Text Analysis}
-# analyzed <- map(celeb_data, analyze_text)
+```{r Text Analysis, eval = FALSE}
 analyze_text(celeb_data_DI)
 analyzed_DI <- list(
   bbqbecky = bbqbecky_analyzed, 
@@ -352,20 +268,14 @@ other_text_info_DI <- list(
 
 ## Cancel Culture
 
-```{r Cancel Culture Text Analysis}
+```{r Cancel Culture Text Analysis, eval = FALSE}
 analyze_text(cancelculture_deidentified)
 long_form_analyzed(cancelculture_deidentified_analyzed)
 ```
 
 # Exporting Cleaned data to load in Shiny App
 
-```{r Exporting Data for Shiny App}
-# save(cancelculture_deidentified_analyzed, 
-#      cancelculture_deidentified_analyzed_long, 
-#      willsmith_deidentified_analyzed, willsmith_deidentified_analyzed_long,
-#      file = "shiny_data.RData")
-# save(analyzed, celeb_data,
-#      file = "celeb_data_shiny.RData")
+```{r Exporting Data for Shiny App, eval = FALSE}
 save(analyzed_DI,
      file = "shiny_data_DI.RData")
 save(other_text_info_DI, 

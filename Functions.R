@@ -138,8 +138,8 @@ clean_twitter <- function(json_data){
 # IMPORT AND CLEAN TWITTER DATA
 
 import_and_clean_twitter <- function(json_tweets){
-  rjson::fromJSON(file = here::here(paste0("data/",json_tweets, ".json")))
-  
+  x <- rjson::fromJSON(file = here::here(paste0("data/", json_tweets, ".json")))
+  clean_twitter(x)
 }
 
 
@@ -209,5 +209,5 @@ deidentify <- function(df){
 }
 
 ##### Debugging:
-# safe_analyze_text <- safely(analyze_text)
-# safe_analyze_text(willsmith_deidentified)
+safe_analyze_text <- safely(analyze_text)
+safe_analyze_text(willsmith_deidentified)
