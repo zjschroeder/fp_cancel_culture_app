@@ -54,7 +54,13 @@ library(readtext)
 # These packages will also be called in Shiny, but I figure it's useful to them here as well
 # library(thematic)
 # library(bslib)
+future::plan(multisession, workers = 6) 
 ```
+
+```{r functions}
+source("Functions.R")
+```
+
 
 # Collecting Tweets
 
@@ -143,152 +149,12 @@ The above code is a loop that sorts the JSON data into the correct format. This 
 
 All of the above code should work with some tweaking, but I lack the Python expertise to guarantee *true* reproducibility. Check out the resources I linked, they'll do a much better job than I at explaining this!
 
-# R Code Data Cleaning
-
-## Functions for Tweet Cleaning
-
-```{r Functions: Cleaning JSON data, eval = TRUE}
-# NO PARALLEL PROCESSING
-json_to_nested_tibbles <- function(json_data){
-  map(json_data, ~tibble(
-  # Variables present in all Tweets
-    username = .x$author$username,
-    tweet_date = .x$created_at %>% 
-      lubridate::ymd_hms(),
-    text = .x$text,
-    retweet_count = .x$public_metrics$retweet_count,
-    reply_count = .x$public_metrics$reply_count,
-    like_count = .x$public_metrics$like_count,
-    quote_count = .x$public_metrics$quote_count,
-    followers_count = .x$author$public_metrics$followers_count,
-    following_count = .x$author$public_metrics$following_count,
-    tweet_count = .x$author$public_metrics$tweet_count,
-    author_id = .x$author$id,
-    verified = .x$author$verified,
-    protected = .x$author$protected,
-    account_created_at = .x$author$created_at %>% 
-      lubridate::ymd_hms(),
-    name = .x$author$name,
-    account_description = .x$author$description,
-    listed_count = .x$author$public_metrics$listed_count,
-    url = .x$url,
-    conversation_id = .x$conversation_id,
-    # If statements for items that may or may not be present in tweet data
-    location = if("location" %in% names(.x$author)){
-                          as.character(.x$author$location)
-                            }else{as.character(NA)},
-    referenced_tweets = if("referenced_tweets" %in% names(.x)){
-                           list(.x$referenced_tweets)
-                             }else{list(NULL)},
-    entities = if("entities" %in% names(.x)){
-                           list(.x$entities)
-                             }else{list(NULL)},
-    in_reply_to_user_id = if("in_reply_to_user_id" %in% names(.x)){
-                         list(.x$in_reply_to_user_id)
-                           }else{list(NULL)}
-  )
-  )
-}
-
-# WITH PARALLEL PROCESSING
-json_to_nested_tibbles_parallel_process <- function(json_data){
-  furrr::future_map(json_data, ~tibble(
-  # Variables present in all tweets
-    username = .x$author$username,
-    tweet_date = .x$created_at %>% 
-      lubridate::ymd_hms(),
-    text = .x$text,
-    retweet_count = .x$public_metrics$retweet_count,
-    reply_count = .x$public_metrics$reply_count,
-    like_count = .x$public_metrics$like_count,
-    quote_count = .x$public_metrics$quote_count,
-    followers_count = .x$author$public_metrics$followers_count,
-    following_count = .x$author$public_metrics$following_count,
-    tweet_count = .x$author$public_metrics$tweet_count,
-    author_id = .x$author$id,
-    verified = .x$author$verified,
-    protected = .x$author$protected,
-    account_created_at = .x$author$created_at %>% 
-      lubridate::ymd_hms(),
-    name = .x$author$name,
-    account_description = .x$author$description,
-    listed_count = .x$author$public_metrics$listed_count,
-    url = .x$url,
-    conversation_id = .x$conversation_id,
-    # If statements for items that may or may not be present in tweet data
-    location = if("location" %in% names(.x$author)){
-                            as.character(.x$author$location)
-                              }else{as.character(NA)},
-    referenced_tweets = if("referenced_tweets" %in% names(.x)){
-                            list(.x$referenced_tweets)
-                              }else{as.character(NA)},
-    entities = if("entities" %in% names(.x)){
-                            list(.x$entities)
-                              }else{as.character(NA)},
-    in_reply_to_user_id = if("in_reply_to_user_id" %in% names(.x)){
-                            list(.x$in_reply_to_user_id)
-                              }else{as.character(NA)}
-  )
-  )
-}
-json_data <- rjson::fromJSON(file = here::here("data/will_smith_full.json"))
-
-# Function for all cleaning
-clean_twitter <- function(json_data){
-  # SET UP FUNCTIONS
-  tictoc::tic()
-    gc() # Force a 'garbage collection' before running, prevents (some) crashing
-    name <- deparse(substitute(json_data)) # Captures the name put into the function
-    future::plan(multisession, workers = 6) # Set the number of cores you'll use
-  # CREATING NULL DFS
-    loops <- tibble(NA)
-    parallel_output <- tibble(NA)
-    tibble_output <- tibble(NA)
-    clean_output <- tibble(NA)
-    data <- NA
-  # Automatically calculating how many loops
-   total_groups <- max(as.numeric(groupdata2::group_factor(json_data,
-                                        n = 10000,
-                                        method = "greedy")))
-   loops <- total_groups - 1
-   loop_call_left <- c(0:loops) * 10000 + 1
-   loop_call_right <- c(0:(loops)) * 10000 + 10000
-  # Final items; start with these because it sets up the tibble, and those items don't fit into the memory-saving bins
-    parallel_output <- json_data[loop_call_right[loops]:length(json_data)] %>% 
-      json_to_nested_tibbles_parallel_process()
-    tibble_output <- tibble(parallel_output)
-    data <- tidyr::unnest_wider(tibble_output, col = parallel_output)
-    parallel_output <- tibble(NA)
-    tibble_output <- tibble(NA)
-  tictoc::toc()
-  #### BEGIN LOOPING OVER GROUPS
-  tictoc::tic()
-    for(i in 1:loops){
-      # Select 10000 at a time
-      parallel_output <- json_data[loop_call_left[i]:loop_call_right[i]] %>% 
-        json_to_nested_tibbles_parallel_process()
-      tibble_output <- tibble(parallel_output)
-      data <- rbind(data, tidyr::unnest_wider(tibble_output, col = parallel_output))
-      parallel_output <- tibble(NA)
-      tibble_output <- tibble(NA)
-      paste0("finished ", i, " of ", loops)
-    }
-  # Saves the output as the name of the input + _clean
-    assign(
-      x = paste0(name, "_clean"),
-      value = data,
-      envir = .GlobalEnv)
-  tictoc::toc()
-}
-clean_twitter(will_smith)
-```
-
 I'm using the [furrr package](https://cran.r-project.org/web/packages/furrr/index.html), which is a wrapper for purrr that super easily implements parallel processing. It uses the same functions and syntax as purrr, just with 'future_' added to the front and use plan() from the future package to specify the number of computer cores that you want to use while parallel processing. This is  key for the computationally heavy code that I'm using here. 
 
 ## Will Smith Data Cleaning
 
 ```{r Loading Will Smith data}
- will_smith <- rjson::fromJSON(file = here::here("data/will_smith_full.json"))
+will_smith <- rjson::fromJSON(file = here::here("data/will_smith_full.json"))
 ```
 
 ```{r JSON cleaning functions: Will Smith, cache = TRUE, eval = FALSE}
@@ -315,7 +181,80 @@ clean_twitter(will_smith)
 
 Above is the clean_twitter() function I wrote that cleans the .json data for you. It compiles all the above steps into one function.
 
-## Cancel Culture Data Cleaning
+## Run on other exemplars
+
+### Celebrities
+
+#### Kanye
+
+```{r Kanye West Import}
+kanye <- rjson::fromJSON(file = here::here("data/kanyewest.json"))
+
+clean_twitter(kanye)  
+```
+
+#### dojacatiscancelledparty
+
+```{r doja cat}
+doja <- rjson::fromJSON(file = here::here("data/dojacat.json"))
+
+clean_twitter(doja)  
+```
+
+#### Lindsay Ellis
+
+```{r}
+lindsayellis <- rjson::fromJSON(file = here::here("data/lindsayellis.json"))
+
+clean_twitter(lindsayellis) 
+```
+
+#### MuteRKelly
+
+```{r}
+rkelly <- rjson::fromJSON(file = here::here("data/rkelly.json"))
+
+clean_twitter(rkelly) 
+```
+
+#### EXPORT
+
+```{r}
+save(kanye_clean, doja_clean, rkelly_clean, lindsayellis_clean, file = "celebrity_cancel.Rdata")
+```
+
+
+### Non Celebrities
+
+#### bbqbecky
+
+```{r}
+bbqbecky <- rjson::fromJSON(file = here::here("data/bbqbecky.json"))
+
+clean_twitter(bbqbecky) 
+```
+
+#### permitpatty
+
+```{r}
+permitpatty <- rjson::fromJSON(file = here::here("data/permitpatty.json"))
+
+clean_twitter(permitpatty) 
+```
+
+#### hasjustinelanded hasjustinelandedyet justinesacco
+
+```{r}
+justinesacco <- rjson::fromJSON(file = here::here("data/justinesacco.json"))
+
+clean_twitter(justinesacco) 
+```
+
+## Cancel Culture-wide Terms
+
+### Mask off
+
+### Cancel Culture Data Cleaning
 
 In this section, I repeat the above process but with data I scraped using the following query: 
 
@@ -339,7 +278,7 @@ In addition to Twitter's deindividuation, the other reason I have you not runnin
 
 ## De-identifying, Exporting & Importing 
 
-From here on out, you should be able to do everything with the code!
+**NOTE** The exporting and importing of data served two purposes: first, it allowed me to have deidentified data that could be viewed by the peer-reviewers and second it saved the files so I didn't inadvertently lose things when R crashed on me. As it's no longer necessary, I've commented out the unnecessary code. Unfortunately, it's still too large for github to handle, so I have to include all data files in the .gitignore
 
 ```{r De-identifying twitter data, eval = FALSE}
 # cancelculture <- rbind(cancelculture_21_clean, cancelculture_22_clean)
@@ -372,9 +311,8 @@ From here on out, you should be able to do everything with the code!
 ```
 
 ```{r}
-# celeb_data_DI <- map(celeb_data, deidentify)
+celeb_data_DI <- map(celeb_data, deidentify)
 ```
-
 
 # Text Analysis
 
@@ -386,19 +324,30 @@ dict_mpd <- dictionary(file = here::here("dictionary/MPD.dic"),
 dict_posneg <- data_dictionary_LSD2015
 ```
 
-## Functions for Text Analysis
+## Text Analysis
 
 ```{r Text Analysis}
 # analyzed <- map(celeb_data, analyze_text)
-# analyzed_DI <- map(celeb_data_DI, analyze_text)
+analyze_text(celeb_data_DI)
+analyzed_DI <- list(
+  bbqbecky = bbqbecky_analyzed, 
+  justinesacco = justinesacco_analyzed, 
+  permitpatty = permitpatty_analyzed,
+  kanye = kanye_analyzed, 
+  lindsayellis = lindsayellis_analyzed, 
+  rkelly = rkelly_analyzed, 
+  willsmith = willsmith_analyzed, 
+  dojacat = dojacat_analyzed)
+other_text_info_DI <- list(
+  bbqbecky = bbqbecky_text_other, 
+  justinesacco = justinesacco_text_other, 
+  permitpatty = permitpatty_text_other,
+  kanye = kanye_text_other, 
+  lindsayellis = lindsayellis_text_other, 
+  rkelly = rkelly_text_other, 
+  willsmith = willsmith_text_other, 
+  dojacat = dojacat_text_other)
 # long_form_analyzed <- map(analyzed, long_form_analyzed)
-```
-
-## Will Smith
-
-```{r Will Smith Text Analysis}
-analyze_text(willsmith_deidentified)
-long_form_analyzed(willsmith_deidentified_analyzed)
 ```
 
 ## Cancel Culture
@@ -419,6 +368,8 @@ long_form_analyzed(cancelculture_deidentified_analyzed)
 #      file = "celeb_data_shiny.RData")
 save(analyzed_DI,
      file = "shiny_data_DI.RData")
+save(other_text_info_DI, 
+     file = "other_text_info_DI.RData")
 ```
 
 

@@ -4,3 +4,11 @@
 .Ruserdata
 
 data/
+
+celeb_data_shiny.RData
+
+celebrity_cancel.Rdata
+
+new_cancel_data.Rdata
+
+other_text_info_DI.RData
