@@ -345,8 +345,7 @@ From here on out, you should be able to do everything with the code!
 # cancelculture <- rbind(cancelculture_21_clean, cancelculture_22_clean)
 # cancelculture_deidentified <- cancelculture %>% 
 #   select(text, tweet_date, retweet_count, reply_count, like_count, quote_count, followers_count, # following_count, tweet_count, verified, protected)
-# willsmith_deidentified <- will_smith_clean %>% 
-#   select(text, tweet_date, retweet_count, reply_count, like_count, quote_count, followers_count, # following_count, tweet_count, verified, protected)
+   
 ```
 
 ```{r export, eval = FALSE}
@@ -354,11 +353,28 @@ From here on out, you should be able to do everything with the code!
 #      file = "deidentified_data.RData")
 # save(cancelculture, will_smith_clean, 
 #      file = "identifiable_data.RData")
+# save(bbqbecky_clean, permitpatty_clean, justinesacco_clean, file = "new_cancel_data.Rdata")
 ```
 
-```{r Loading data for text analysis}
-load("deidentified_data.RData")
+```{r Loading data for text analysis NOT DEIDENTIFIED}
+# load("deidentified_data.RData")
+# load("new_cancel_data.Rdata")
+# load("celebrity_cancel.Rdata")
+# celeb_data <- list(
+#   bbqbecky = bbqbecky_clean, 
+#   justinesacco = justinesacco_clean, 
+#   permitpatty = permitpatty_clean,
+#   kanye = kanye_clean, 
+#   lindsayellis = lindsayellis_clean, 
+#   rkelly = rkelly_clean, 
+#   willsmith = willsmith_deidentified, 
+#   dojacat = doja_clean)
 ```
+
+```{r}
+# celeb_data_DI <- map(celeb_data, deidentify)
+```
+
 
 # Text Analysis
 
@@ -372,61 +388,10 @@ dict_posneg <- data_dictionary_LSD2015
 
 ## Functions for Text Analysis
 
-```{r Functions for Text Analysis}
-convert_to_data_frame <- function(formal_dfm){
-  convert(formal_dfm, to = "data.frame")
-}
-mental_perception <- function(dfmat){
-  dfm_lookup(dfmat, dictionary = dict_mpd, levels = 1) %>% 
-  convert_to_data_frame()
-}
-sentiment <- function(dfmat){
-  dfm_lookup(dfmat, dictionary = dict_posneg, levels = 1) %>% 
-  convert_to_data_frame()
-}
-calculate_tweet_valence <- function(df){
-  df$valence <- map2_dbl(.x = df$positive, 
-                       .y = df$negative, 
-                         ~ .x - .y)
-}
-
-analyze_text <- function(df){
-  name <- deparse(substitute(df)) 
-  corp <- corpus(df, text_field = 1)
-  toks <- tokens(corp, remove_punct = T)
-  dfmat <- dfm(toks)
-  ment_perc <- mental_perception(dfmat)
-  pos_neg <- sentiment(dfmat) 
-  data <- cbind(df,
-    ment_perc %>% dplyr::select(!doc_id),
-    pos_neg %>% dplyr::select(!doc_id))
-  calculate_tweet_valence(data)
-  assign(
-     x = paste0(name, "_analyzed"),
-     value = data,
-     envir = .GlobalEnv)
-  assign(
-     x = paste0(name, "_text_other"),
-     value = list(corp, toks, dfmat, ment_perc, pos_neg),
-     envir = .GlobalEnv)
-}
-
-long_form_analyzed <- function(df){
-  data <- df %>% 
-    pivot_longer(cols = c("negative", "positive", "neg_positive", 
-                       "neg_negative", "Experience", "Agency", 
-                       "PatientEmotion", "AgentEmotion", "MindOverall"),
-              names_to = "text_measures", 
-              values_to = "text_score")
-  name = deparse(substitute(df))
-  assign(x = paste0(name, "_long"),
-         value = data,
-         envir = .GlobalEnv)}
-
-
-##### Debugging:
-# safe_analyze_text <- safely(analyze_text)
-# safe_analyze_text(willsmith_deidentified)
+```{r Text Analysis}
+# analyzed <- map(celeb_data, analyze_text)
+# analyzed_DI <- map(celeb_data_DI, analyze_text)
+# long_form_analyzed <- map(analyzed, long_form_analyzed)
 ```
 
 ## Will Smith
@@ -446,10 +411,14 @@ long_form_analyzed(cancelculture_deidentified_analyzed)
 # Exporting Cleaned data to load in Shiny App
 
 ```{r Exporting Data for Shiny App}
-save(cancelculture_deidentified_analyzed, 
-     cancelculture_deidentified_analyzed_long, 
-     willsmith_deidentified_analyzed, willsmith_deidentified_analyzed_long,
-     file = "shiny_data.RData")
+# save(cancelculture_deidentified_analyzed, 
+#      cancelculture_deidentified_analyzed_long, 
+#      willsmith_deidentified_analyzed, willsmith_deidentified_analyzed_long,
+#      file = "shiny_data.RData")
+# save(analyzed, celeb_data,
+#      file = "celeb_data_shiny.RData")
+save(analyzed_DI,
+     file = "shiny_data_DI.RData")
 ```
 
 
